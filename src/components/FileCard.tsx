@@ -23,23 +23,25 @@ export const FileCard: React.FC<FileCardProps> = ({
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-4 sm:p-6 shadow-sm transition-all">
+    <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-6 shadow-sm transition-all">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-3.5 min-w-0">
           <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${
             isPdf 
-              ? 'bg-rose-50 text-rose-600 border border-rose-100' 
-              : 'bg-emerald-50 text-emerald-600 border border-emerald-100'
+              ? 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50' 
+              : 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50'
           }`}>
             {isPdf ? <FileText className="w-6 h-6" /> : <ImageIcon className="w-6 h-6" />}
           </div>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900 truncate">
+            <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 truncate">
               {file.name}
             </p>
-            <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500">
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 dark:text-slate-400">
               <span className={`font-medium px-1.5 py-0.5 rounded text-[11px] uppercase ${
-                isPdf ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                isPdf 
+                  ? 'bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300' 
+                  : 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300'
               }`}>
                 {isPdf ? 'PDF Document' : 'Scanned Image'}
               </span>
@@ -49,12 +51,12 @@ export const FileCard: React.FC<FileCardProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100">
+        <div className="flex items-center gap-2 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800">
           <button
             type="button"
             onClick={onRemove}
             disabled={isLoading}
-            className="px-3 py-2 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors flex items-center gap-1.5"
+            className="px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors flex items-center gap-1.5"
             title="Remove file"
           >
             <X className="w-4 h-4" />
@@ -65,7 +67,7 @@ export const FileCard: React.FC<FileCardProps> = ({
             type="button"
             onClick={onSubmit}
             disabled={isLoading}
-            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white text-sm font-medium px-5 py-2.5 rounded-xl shadow-sm shadow-blue-200 transition-colors"
+            className="flex-1 sm:flex-initial inline-flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-600 dark:hover:bg-indigo-500 disabled:opacity-50 text-white text-sm font-medium px-5 py-2.5 rounded-xl shadow-sm shadow-indigo-200/50 dark:shadow-none transition-colors"
           >
             <span>Summarize Document</span>
             <ArrowRight className="w-4 h-4" />

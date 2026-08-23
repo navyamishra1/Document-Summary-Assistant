@@ -88,7 +88,6 @@ export const FileUpload: React.FC<FileUploadProps> = ({
     if (e.target.files && e.target.files.length > 0) {
       const file = e.target.files[0];
       validateAndHandleFile(file);
-      // Reset input value so re-selecting same file triggers onChange
       e.target.value = '';
     }
   };
@@ -118,8 +117,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         onDrop={handleDrop}
         className={`relative group cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-200 p-8 sm:p-12 text-center flex flex-col items-center justify-center ${
           isDragOver
-            ? 'border-blue-500 bg-blue-50/70 ring-4 ring-blue-500/10 scale-[1.005]'
-            : 'border-slate-300 bg-white hover:border-slate-400 hover:bg-slate-50/50'
+            ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/30 ring-4 ring-indigo-500/10 scale-[1.005]'
+            : 'border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-500/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/80 shadow-sm'
         } ${disabled ? 'opacity-60 cursor-not-allowed pointer-events-none' : ''}`}
       >
         <input
@@ -134,38 +133,38 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         <div
           className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl flex items-center justify-center transition-all duration-200 mb-4 ${
             isDragOver
-              ? 'bg-blue-600 text-white scale-110 shadow-md shadow-blue-200'
-              : 'bg-blue-50 text-blue-600 group-hover:bg-blue-100 group-hover:scale-105'
+              ? 'bg-indigo-600 dark:bg-indigo-500 text-white scale-110 shadow-md shadow-indigo-200 dark:shadow-none'
+              : 'bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 group-hover:bg-indigo-100 dark:group-hover:bg-indigo-900/60 group-hover:scale-105'
           }`}
         >
           <UploadCloud className="w-8 h-8 sm:w-10 sm:h-10" />
         </div>
 
         <div className="space-y-2 max-w-md">
-          <h3 className="text-base sm:text-lg font-semibold text-slate-900">
+          <h3 className="text-base sm:text-lg font-semibold text-slate-900 dark:text-slate-100">
             {isDragOver ? (
-              <span className="text-blue-600">Drop your file right here</span>
+              <span className="text-indigo-600 dark:text-indigo-400">Drop your file right here</span>
             ) : (
               <>
                 <span>Drag & drop your document here, or </span>
-                <span className="text-blue-600 underline underline-offset-4 decoration-blue-300 group-hover:decoration-blue-600">
+                <span className="text-indigo-600 dark:text-indigo-400 underline underline-offset-4 decoration-indigo-300 dark:decoration-indigo-600 group-hover:decoration-indigo-600 dark:group-hover:decoration-indigo-400">
                   browse
                 </span>
               </>
             )}
           </h3>
-          <p className="text-xs sm:text-sm text-slate-500">
+          <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
             Upload PDF documents or scanned images to extract formatted text and generate structured summaries.
           </p>
         </div>
 
         {/* Supported File Indicators */}
         <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-rose-50 text-rose-700 border border-rose-100">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-rose-50 dark:bg-rose-950/40 text-rose-700 dark:text-rose-400 border border-rose-100 dark:border-rose-900/50">
             <FileText className="w-3.5 h-3.5" />
             <span>PDF Documents</span>
           </div>
-          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-100">
+          <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/50">
             <ImageIcon className="w-3.5 h-3.5" />
             <span>Images (PNG, JPG, JPEG)</span>
           </div>
@@ -173,7 +172,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
       </div>
 
       {errorMessage && (
-        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-xs sm:text-sm flex items-center gap-2">
+        <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-xl text-red-700 dark:text-red-400 text-xs sm:text-sm flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{errorMessage}</span>
         </div>
