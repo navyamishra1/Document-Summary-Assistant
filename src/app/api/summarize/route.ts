@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { GoogleGenerativeAI, SchemaType } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { SummarizeResponse } from '@/types/document';
 
 export const runtime = 'nodejs';
@@ -60,8 +60,16 @@ DOCUMENT TEXT:
 ${cleanText.slice(0, 50000)}
 `;
 
-    // Try models in order: gemini-2.5-flash -> gemini-1.5-flash -> gemini-2.0-flash
-    const candidateModels = ['gemini-2.5-flash', 'gemini-1.5-flash', 'gemini-2.0-flash'];
+    // Supported active Gemini models in order of preference:
+    const candidateModels = [
+      'gemini-3.6-flash',
+      'gemini-3.7-flash',
+      'gemini-3.5-flash',
+      'gemini-flash-latest',
+      'gemini-3.1-flash-lite',
+      'gemini-2.5-flash-lite',
+    ];
+
     let resultText = '';
     let lastError: any = null;
 
