@@ -16,6 +16,7 @@ const ACCEPTED_MIME_TYPES = [
 ];
 
 const ACCEPTED_EXTENSIONS = ['.pdf', '.png', '.jpg', '.jpeg'];
+const MAX_FILE_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
 
 export const FileUpload: React.FC<FileUploadProps> = ({
   onFileSelect,
@@ -29,6 +30,16 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   const validateAndHandleFile = useCallback(
     (file: File) => {
       setErrorMessage(null);
+
+      // Check size limit
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        setErrorMessage(
+          `File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds the 15MB maximum limit. Please upload a smaller document.`
+        );
+        return;
+      }
+
+      // Check format
       const isAcceptedMime = ACCEPTED_MIME_TYPES.includes(file.type.toLowerCase());
       const isAcceptedExt = ACCEPTED_EXTENSIONS.some((ext) =>
         file.name.toLowerCase().endsWith(ext)
@@ -36,7 +47,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
 
       if (!isAcceptedMime && !isAcceptedExt) {
         setErrorMessage(
-          'Unsupported file format. Please upload a PDF or an image (PNG, JPG, JPEG).'
+          'Unsupported file format. Please upload a PDF document or an image file (PNG, JPG, JPEG).'
         );
         return;
       }
@@ -99,7 +110,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-3">
       <div
         role="button"
         tabIndex={0}
@@ -115,7 +126,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
-        className={`relative group cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-200 p-8 sm:p-12 text-center flex flex-col items-center justify-center ${
+        className={`relative group cursor-pointer rounded-2xl border-2 border-dashed transition-all duration-200 p-8 sm:p-12 text-center flex flex-col items-center justify-center focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-950 ${
           isDragOver
             ? 'border-indigo-500 dark:border-indigo-400 bg-indigo-50/70 dark:bg-indigo-950/30 ring-4 ring-indigo-500/10 scale-[1.005]'
             : 'border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-900 hover:border-indigo-400 dark:hover:border-indigo-500/70 hover:bg-slate-50/50 dark:hover:bg-slate-900/80 shadow-sm'
@@ -154,7 +165,7 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             )}
           </h3>
           <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-            Upload PDF documents or scanned images to extract formatted text and generate structured summaries.
+            Upload PDF documents or scanned images to extract formatted text and generate structured smart summaries.
           </p>
         </div>
 
@@ -168,13 +179,19 @@ export const FileUpload: React.FC<FileUploadProps> = ({
             <ImageIcon className="w-3.5 h-3.5" />
             <span>Images (PNG, JPG, JPEG)</span>
           </div>
+          <div className="inline-flex items-center px-2 py-1 rounded-md text-[11px] font-medium text-slate-400 dark:text-slate-500">
+            Max 15MB
+          </div>
         </div>
       </div>
 
       {errorMessage && (
-        <div className="mt-3 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-xl text-red-700 dark:text-red-400 text-xs sm:text-sm flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          <span>{errorMessage}</span>
+        <div className="p-3.5 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900/50 rounded-xl text-red-700 dark:text-red-400 text-xs sm:text-sm flex items-start gap-2.5 shadow-sm animate-in fade-in slide-in-from-top-1 duration-150">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <span className="font-semibold">Upload Error: </span>
+            <span>{errorMessage}</span>
+          </div>
         </div>
       )}
     </div>

@@ -12,7 +12,8 @@ import {
   ChevronDown, 
   ChevronUp, 
   RefreshCw,
-  AlignLeft
+  AlignLeft,
+  Cpu
 } from 'lucide-react';
 import { DocumentResult, SummaryLength } from '@/types/document';
 
@@ -48,31 +49,38 @@ export const ResultsView: React.FC<ResultsViewProps> = ({ data, onReset }) => {
   };
 
   const handleDownloadSummary = () => {
-    const content = `DOCUMENT SUMMARY: ${data.fileName}
-Length: ${selectedLength.toUpperCase()}
-Generated on: ${new Date().toLocaleDateString()}
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const content = `DOCUMENT SUMMARY REPORT
+================================================================================
+File Name:    ${data.fileName}
+File Size:    ${(data.fileSize / 1024).toFixed(1)} KB
+Method:       ${data.extractionMethod === 'ocr' ? 'Tesseract OCR' : 'PDF Parsing'}
+Length:       ${selectedLength.toUpperCase()}
+Generated on: ${new Date().toLocaleString()}
+================================================================================
 
-========================================
-SUMMARY
-========================================
+1. ${selectedLength.toUpperCase()} SUMMARY
+--------------------------------------------------------------------------------
 ${data.summary[selectedLength]}
 
-========================================
-KEY POINTS & MAIN IDEAS
-========================================
+2. KEY POINTS & MAIN IDEAS
+--------------------------------------------------------------------------------
 ${data.keyPoints.map((pt, i) => `${i + 1}. ${pt}`).join('\n')}
 
-========================================
-IMPROVEMENT SUGGESTIONS
-========================================
+3. IMPROVEMENT SUGGESTIONS
+--------------------------------------------------------------------------------
 ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
+
+4. RAW EXTRACTED TEXT
+--------------------------------------------------------------------------------
+${data.extractedText}
 `;
 
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `${data.fileName.replace(/\.[^/.]+$/, '')}_${selectedLength}_summary.txt`;
+    link.download = `${data.fileName.replace(/\.[^/.]+$/, '')}_${selectedLength}_summary_${timestamp}.txt`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -80,10 +88,14 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
   };
 
   const summaryTabs: { id: SummaryLength; label: string; description: string }[] = [
-    { id: 'short', label: 'Short', description: 'Concise summary' },
-    { id: 'medium', label: 'Medium', description: 'Balanced overview' },
-    { id: 'long', label: 'Long', description: 'Comprehensive details' },
+    { id: 'short', label: 'Short', description: 'Concise briefing (~2-3 sentences)' },
+    { id: 'medium', label: 'Medium', description: 'Balanced summary (~1-2 paragraphs)' },
+    { id: 'long', label: 'Long', description: 'Comprehensive analysis' },
   ];
+
+  const currentSummaryText = data.summary[selectedLength] || '';
+  const wordCount = currentSummaryText.split(/\s+/).filter(Boolean).length;
+  const estimatedReadTime = Math.max(1, Math.ceil(wordCount / 200));
 
   return (
     <div className="space-y-6">
@@ -97,9 +109,29 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
             <h2 className="text-sm sm:text-base font-semibold text-slate-900 dark:text-slate-100 truncate">
               {data.fileName}
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              Analysis complete • {(data.fileSize / (1024 * 1024)).toFixed(2)} MB
-            </p>
+            <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-500 dark:text-slate-400">
+              <span>{(data.fileSize / 1024).toFixed(1)} KB</span>
+              <span>•</span>
+              <span className="inline-flex items-center gap-1 font-medium text-slate-600 dark:text-slate-300">
+                {data.extractionMethod === 'ocr' ? (
+                  <>
+                    <Cpu className="w-3 h-3 text-indigo-500" />
+                    <span>OCR Extracted</span>
+                  </>
+                ) : (
+                  <>
+                    <FileText className="w-3 h-3 text-indigo-500" />
+                    <span>PDF Parsed</span>
+                  </>
+                )}
+              </span>
+              {data.pageCount ? (
+                <>
+                  <span>•</span>
+                  <span>{data.pageCount} page{data.pageCount > 1 ? 's' : ''}</span>
+                </>
+              ) : null}
+            </div>
           </div>
         </div>
 
@@ -122,7 +154,7 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
             </div>
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Document Summary</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Select desired summary depth</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Choose desired summary length</p>
             </div>
           </div>
 
@@ -138,6 +170,7 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
                     ? 'bg-white dark:bg-slate-900 text-indigo-700 dark:text-indigo-300 shadow-sm font-semibold'
                     : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
                 }`}
+                title={tab.description}
               >
                 {tab.label}
               </button>
@@ -147,40 +180,49 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
 
         {/* Summary Content */}
         <div className="space-y-4">
-          <div className="text-xs sm:text-sm text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line bg-slate-50/70 dark:bg-slate-800/40 p-4 sm:p-5 rounded-xl border border-slate-100 dark:border-slate-800">
-            {data.summary[selectedLength]}
+          <div className="text-xs sm:text-sm text-slate-800 dark:text-slate-200 leading-relaxed whitespace-pre-line bg-slate-50/70 dark:bg-slate-800/40 p-4 sm:p-5 rounded-xl border border-slate-100 dark:border-slate-800">
+            {currentSummaryText}
           </div>
 
-          {/* Action Buttons: Copy & Download */}
-          <div className="flex items-center justify-end gap-3 pt-1">
-            <button
-              type="button"
-              onClick={handleDownloadSummary}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-            >
-              <Download className="w-3.5 h-3.5" />
-              <span>Download Summary</span>
-            </button>
+          {/* Action Buttons & Word Count */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1 text-xs text-slate-500 dark:text-slate-400">
+            <div className="flex items-center gap-2">
+              <span>{wordCount} words</span>
+              <span>•</span>
+              <span>~{estimatedReadTime} min read</span>
+            </div>
 
-            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={handleDownloadSummary}
+                className="inline-flex items-center gap-1.5 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                title="Download full summary report (.txt)"
+              >
+                <Download className="w-3.5 h-3.5" />
+                <span>Download Report</span>
+              </button>
 
-            <button
-              type="button"
-              onClick={handleCopySummary}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-            >
-              {copiedSummary ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-emerald-600 dark:text-emerald-400 font-medium">Copied summary</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy summary</span>
-                </>
-              )}
-            </button>
+              <span className="text-slate-300 dark:text-slate-700">•</span>
+
+              <button
+                type="button"
+                onClick={handleCopySummary}
+                className="inline-flex items-center gap-1.5 hover:text-slate-900 dark:hover:text-slate-100 transition-colors"
+              >
+                {copiedSummary ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span className="text-emerald-600 dark:text-emerald-400 font-medium">Copied summary</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copy summary</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -193,7 +235,7 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Key Points & Main Ideas</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Core highlights and takeaways from the document</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Core highlights and essential takeaways</p>
           </div>
         </div>
 
@@ -220,7 +262,7 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Improvement Suggestions</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Recommendations for enhancing clarity and structure</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Constructive feedback on structure, clarity, and readability</p>
           </div>
         </div>
 
@@ -242,7 +284,7 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
         <button
           type="button"
           onClick={() => setShowExtractedText(!showExtractedText)}
-          className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors"
+          className="w-full p-5 sm:p-6 flex items-center justify-between text-left hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors focus:outline-none"
         >
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg bg-purple-100/80 dark:bg-purple-950/60 text-purple-700 dark:text-purple-400 flex items-center justify-center">
@@ -251,7 +293,7 @@ ${data.improvementSuggestions.map((sug, i) => `• ${sug}`).join('\n')}
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">Raw Extracted Text</h3>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Preserved formatting from PDF parsing / OCR extraction
+                Preserved text structure from {data.extractionMethod === 'ocr' ? 'Tesseract OCR' : 'PDF Parsing'}
               </p>
             </div>
           </div>

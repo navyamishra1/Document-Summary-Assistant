@@ -6,13 +6,17 @@ import { FileUpload } from '@/components/FileUpload';
 import { FileCard } from '@/components/FileCard';
 import { LoadingState } from '@/components/LoadingState';
 import { ResultsView } from '@/components/ResultsView';
+import { performOCR } from '@/lib/ocr';
 import { mockDocumentResult } from '@/mock/mockData';
-import { DocumentResult, ProcessingStep } from '@/types/document';
+import { DocumentResult, ProcessingStep, SummarizeResponse, ExtractPdfResponse } from '@/types/document';
 import { Eye } from 'lucide-react';
 
 export default function Home() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [processingStep, setProcessingStep] = useState<ProcessingStep>('idle');
+  const [statusMessage, setStatusMessage] = useState<string>('');
+  const [ocrProgressPercent, setOcrProgressPercent] = useState<number | undefined>(undefined);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [results, setResults] = useState<DocumentResult | null>(null);
   const [isDarkMode, setIsDarkMode] = useState<boolean>(false);
 
@@ -45,42 +49,125 @@ export default function Home() {
   const handleFileSelect = (file: File) => {
     setSelectedFile(file);
     setResults(null);
+    setErrorMessage(null);
+    setProcessingStep('idle');
   };
 
   const handleRemoveFile = () => {
     setSelectedFile(null);
     setResults(null);
+    setErrorMessage(null);
     setProcessingStep('idle');
   };
 
-  const handleSummarize = () => {
+  const handleProcessDocument = async () => {
     if (!selectedFile) return;
 
-    setProcessingStep('parsing');
+    setErrorMessage(null);
+    setResults(null);
+    setOcrProgressPercent(undefined);
 
-    // Simulate multi-step pipeline progression for UI demonstration
-    setTimeout(() => {
-      setProcessingStep('extracting');
-    }, 900);
+    const isPdf = selectedFile.type === 'application/pdf' || selectedFile.name.toLowerCase().endsWith('.pdf');
+    let extractedText = '';
+    let extractionMethod: 'pdf' | 'ocr' = isPdf ? 'pdf' : 'ocr';
+    let pageCount: number | undefined = undefined;
 
-    setTimeout(() => {
+    try {
+      // Stage 1: Reading document
+      setProcessingStep('reading');
+      setStatusMessage('Reading document and validating format...');
+      await new Promise((r) => setTimeout(r, 400));
+
+      // Stage 2: Text Extraction / OCR
+      if (isPdf) {
+        setProcessingStep('extracting');
+        setStatusMessage('Extracting formatted text from PDF pages...');
+
+        const formData = new FormData();
+        formData.append('file', selectedFile);
+
+        const extractRes = await fetch('/api/extract-pdf', {
+          method: 'POST',
+          body: formData,
+        });
+
+        const extractData: ExtractPdfResponse & { error?: string } = await extractRes.json();
+
+        if (!extractRes.ok || extractData.error) {
+          throw new Error(extractData.error || 'Failed to extract text from PDF document.');
+        }
+
+        if (!extractData.text || extractData.text.trim().length === 0) {
+          throw new Error(
+            'The uploaded PDF does not contain extractable digital text. It may be a purely scanned document or image-only PDF.'
+          );
+        }
+
+        extractedText = extractData.text;
+        pageCount = extractData.numPages;
+        extractionMethod = 'pdf';
+      } else {
+        // Image OCR with Tesseract.js
+        setProcessingStep('ocr');
+        setStatusMessage('Initializing Tesseract OCR engine...');
+
+        extractedText = await performOCR(selectedFile, (percent, status) => {
+          setOcrProgressPercent(percent);
+          setStatusMessage(status);
+        });
+
+        extractionMethod = 'ocr';
+      }
+
+      // Stage 3: Analyzing Content
+      setProcessingStep('analyzing');
+      setStatusMessage('Analyzing document structure and key themes...');
+      await new Promise((r) => setTimeout(r, 600));
+
+      // Stage 4: AI Summarization with Gemini
       setProcessingStep('summarizing');
-    }, 1800);
+      setStatusMessage('Synthesizing smart summaries and improvement suggestions via Gemini AI...');
 
-    setTimeout(() => {
-      // For STEP 1 UI Shell, populate with placeholder/mock result adapted to selected file
+      const summarizeRes = await fetch('/api/summarize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          text: extractedText,
+          fileName: selectedFile.name,
+        }),
+      });
+
+      const summarizeData: SummarizeResponse & { error?: string; code?: string } =
+        await summarizeRes.json();
+
+      if (!summarizeRes.ok || summarizeData.error) {
+        throw new Error(summarizeData.error || 'Failed to generate AI summaries.');
+      }
+
+      // Final Stage: Complete
       setResults({
-        ...mockDocumentResult,
         fileName: selectedFile.name,
         fileSize: selectedFile.size,
-        fileType: selectedFile.type || (selectedFile.name.endsWith('.pdf') ? 'application/pdf' : 'image/png'),
+        fileType: selectedFile.type || (isPdf ? 'application/pdf' : 'image/png'),
+        extractedText: extractedText,
+        summary: summarizeData.summary,
+        keyPoints: summarizeData.keyPoints,
+        improvementSuggestions: summarizeData.improvementSuggestions,
+        extractionMethod,
+        pageCount,
       });
+
       setProcessingStep('done');
-    }, 2800);
+    } catch (error: any) {
+      console.error('Processing error:', error);
+      setProcessingStep('error');
+      setErrorMessage(error.message || 'An unexpected error occurred during document processing.');
+    }
   };
 
   const handlePreviewMock = () => {
     setSelectedFile(null);
+    setErrorMessage(null);
     setProcessingStep('done');
     setResults(mockDocumentResult);
   };
@@ -88,10 +175,14 @@ export default function Home() {
   const handleReset = () => {
     setSelectedFile(null);
     setResults(null);
+    setErrorMessage(null);
     setProcessingStep('idle');
   };
 
-  const isLoading = processingStep !== 'idle' && processingStep !== 'done';
+  const isLoading =
+    processingStep !== 'idle' &&
+    processingStep !== 'done' &&
+    processingStep !== 'error';
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-between transition-colors duration-200">
@@ -122,7 +213,7 @@ export default function Home() {
         </section>
 
         {/* Upload & Action Section */}
-        {!results && !isLoading && (
+        {!results && !isLoading && processingStep !== 'error' && (
           <section className="space-y-4">
             {!selectedFile ? (
               <FileUpload onFileSelect={handleFileSelect} disabled={isLoading} />
@@ -130,22 +221,29 @@ export default function Home() {
               <FileCard
                 file={selectedFile}
                 onRemove={handleRemoveFile}
-                onSubmit={handleSummarize}
+                onSubmit={handleProcessDocument}
                 isLoading={isLoading}
               />
             )}
           </section>
         )}
 
-        {/* Loading State Section */}
-        {isLoading && (
+        {/* Loading & Error State Section */}
+        {(isLoading || processingStep === 'error') && (
           <section>
-            <LoadingState step={processingStep} />
+            <LoadingState
+              step={processingStep}
+              statusMessage={statusMessage}
+              progressPercent={ocrProgressPercent}
+              error={errorMessage}
+              onRetry={handleProcessDocument}
+              onCancel={handleReset}
+            />
           </section>
         )}
 
         {/* Results Section */}
-        {results && !isLoading && (
+        {results && !isLoading && processingStep === 'done' && (
           <section>
             <ResultsView data={results} onReset={handleReset} />
           </section>
@@ -155,8 +253,8 @@ export default function Home() {
       {/* Footer */}
       <footer className="border-t border-slate-200 dark:border-slate-800/80 bg-white dark:bg-slate-900 py-4 text-center text-xs text-slate-500 dark:text-slate-400 transition-colors duration-200">
         <div className="max-w-4xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>Document Summary Assistant • Technical Assessment UI Shell</span>
-          <span className="text-slate-400 dark:text-slate-500">PDF Parsing & OCR Ready</span>
+          <span>Document Summary Assistant • Technical Assessment Submission</span>
+          <span className="text-slate-400 dark:text-slate-500">PDF Parsing & Tesseract OCR</span>
         </div>
       </footer>
     </div>
