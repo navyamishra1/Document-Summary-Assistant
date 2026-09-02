@@ -7,13 +7,22 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { text, fileName } = body;
+    let body: any;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        { error: 'Invalid JSON request payload.' },
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const { text, fileName } = body || {};
 
     if (!text || typeof text !== 'string' || text.trim().length === 0) {
       return NextResponse.json(
         { error: 'No extracted text provided for summarization.' },
-        { status: 400 }
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -24,10 +33,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         {
           error:
-            'Gemini API key is not configured. Please set GEMINI_API_KEY in your .env.local file to enable AI summarization.',
+            'Gemini API key is not configured. Please set GEMINI_API_KEY in your environment variables to enable AI summarization.',
           code: 'MISSING_API_KEY',
         },
-        { status: 503 }
+        { status: 503, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
@@ -60,14 +69,10 @@ DOCUMENT TEXT:
 ${cleanText.slice(0, 50000)}
 `;
 
-    // Supported active Gemini models in order of preference:
+    // Live-verified active Gemini models in order of preference:
     const candidateModels = [
       'gemini-3.6-flash',
-      'gemini-3.7-flash',
       'gemini-3.5-flash',
-      'gemini-3.5-flash-lite',
-      'gemini-flash-latest',
-      'gemini-3.1-flash-lite',
     ];
 
     let resultText = '';
@@ -85,9 +90,9 @@ ${cleanText.slice(0, 50000)}
 
         const result = await model.generateContent(prompt);
         resultText = result.response.text();
-        if (resultText) break;
+        if (resultText && resultText.trim().length > 0) break;
       } catch (err: any) {
-        console.warn(`Model ${modelName} failed or unavailable:`, err?.message);
+        console.warn(`Model ${modelName} failed or unavailable:`, err?.message || err);
         lastError = err;
       }
     }
@@ -120,21 +125,33 @@ ${cleanText.slice(0, 50000)}
       throw new Error('AI response is missing required summary fields.');
     }
 
-    return NextResponse.json(parsedResult);
+    return NextResponse.json(parsedResult, {
+      headers: { 'Content-Type': 'application/json' },
+    });
   } catch (error: any) {
     console.error('Error in /api/summarize:', error);
     
     // Provide clean, understandable error messages
-    let userMessage = error.message || 'AI summarization failed.';
-    if (userMessage.includes('API_KEY_INVALID') || userMessage.includes('API key not valid')) {
-      userMessage = 'Invalid Gemini API Key. Please verify your GEMINI_API_KEY in .env.local.';
-    } else if (userMessage.includes('RESOURCE_EXHAUSTED') || userMessage.includes('quota')) {
+    let userMessage = error?.message || 'AI summarization failed.';
+    let statusCode = 500;
+
+    if (userMessage.includes('API_KEY_INVALID') || userMessage.includes('API key not valid') || userMessage.includes('apiKey is not valid')) {
+      userMessage = 'Invalid Gemini API Key. Please verify your GEMINI_API_KEY environment variable.';
+      statusCode = 401;
+    } else if (userMessage.includes('RESOURCE_EXHAUSTED') || userMessage.includes('quota') || userMessage.includes('429')) {
       userMessage = 'Gemini API rate limit or quota exceeded. Please wait a few moments and try again.';
+      statusCode = 429;
+    } else if (userMessage.includes('fetch failed') || userMessage.includes('ECONNREFUSED') || userMessage.includes('ETIMEDOUT')) {
+      userMessage = 'Network error connecting to Gemini AI service. Please try again.';
+      statusCode = 503;
     }
 
     return NextResponse.json(
       { error: userMessage },
-      { status: 500 }
+      { 
+        status: statusCode,
+        headers: { 'Content-Type': 'application/json' }
+      }
     );
   }
 }

@@ -60,6 +60,50 @@ export default function Home() {
     setProcessingStep('idle');
   };
 
+// Safe response parser that prevents "Unexpected token '<'" errors when server returns HTML error pages
+async function safeParseJsonResponse<T>(
+  response: Response,
+  fallbackMessage: string
+): Promise<{ data: T | null; error: string | null }> {
+  const contentType = response.headers.get('content-type') || '';
+  const isJson = contentType.toLowerCase().includes('application/json');
+
+  if (!isJson) {
+    if (response.status === 413) {
+      return {
+        data: null,
+        error: 'The uploaded file exceeds the server upload limit. Please try a smaller document.',
+      };
+    }
+    if (response.status === 504) {
+      return {
+        data: null,
+        error: 'The request timed out while processing. Please try again with a shorter document.',
+      };
+    }
+    if (response.status === 503) {
+      return {
+        data: null,
+        error: 'The service is temporarily unavailable. Please verify that GEMINI_API_KEY is configured in your environment variables.',
+      };
+    }
+    return {
+      data: null,
+      error: `Server returned an unexpected HTTP ${response.status}${response.statusText ? ` (${response.statusText})` : ''} response instead of JSON.`,
+    };
+  }
+
+  try {
+    const data = await response.json();
+    return { data, error: null };
+  } catch (err: any) {
+    return {
+      data: null,
+      error: `${fallbackMessage}: ${err?.message || 'Invalid JSON format received from server.'}`,
+    };
+  }
+}
+
   const handleProcessDocument = async () => {
     if (!selectedFile) return;
 
@@ -91,13 +135,19 @@ export default function Home() {
           body: formData,
         });
 
-        const extractData: ExtractPdfResponse & { error?: string } = await extractRes.json();
+        const { data: extractData, error: parseErr } = await safeParseJsonResponse<
+          ExtractPdfResponse & { error?: string }
+        >(extractRes, 'Failed to parse PDF extraction response');
 
-        if (!extractRes.ok || extractData.error) {
-          throw new Error(extractData.error || 'Failed to extract text from PDF document.');
+        if (parseErr) {
+          throw new Error(parseErr);
         }
 
-        if (!extractData.text || extractData.text.trim().length === 0) {
+        if (!extractRes.ok || extractData?.error) {
+          throw new Error(extractData?.error || `Failed to extract text from PDF document (HTTP ${extractRes.status}).`);
+        }
+
+        if (!extractData || !extractData.text || extractData.text.trim().length === 0) {
           throw new Error(
             'The uploaded PDF does not contain extractable digital text. It may be a purely scanned document or image-only PDF.'
           );
@@ -137,11 +187,20 @@ export default function Home() {
         }),
       });
 
-      const summarizeData: SummarizeResponse & { error?: string; code?: string } =
-        await summarizeRes.json();
+      const { data: summarizeData, error: sumParseErr } = await safeParseJsonResponse<
+        SummarizeResponse & { error?: string; code?: string }
+      >(summarizeRes, 'Failed to parse AI summarization response');
 
-      if (!summarizeRes.ok || summarizeData.error) {
-        throw new Error(summarizeData.error || 'Failed to generate AI summaries.');
+      if (sumParseErr) {
+        throw new Error(sumParseErr);
+      }
+
+      if (!summarizeRes.ok || summarizeData?.error) {
+        throw new Error(summarizeData?.error || `Failed to generate AI summaries (HTTP ${summarizeRes.status}).`);
+      }
+
+      if (!summarizeData || !summarizeData.summary) {
+        throw new Error('Incomplete summary data received from AI.');
       }
 
       // Final Stage: Complete
