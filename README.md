@@ -1,5 +1,8 @@
 # Document Summary Assistant (`docsummary-assistant`)
 
+> 🚀 **Live Demo**: [https://document-summary-assistant-two-flame.vercel.app](https://document-summary-assistant-two-flame.vercel.app)  
+> 📦 **GitHub Repository**: [https://github.com/navyamishra1/Document-Summary-Assistant](https://github.com/navyamishra1/Document-Summary-Assistant)
+
 A high-performance, accessible single-page web application built with **Next.js 14 (App Router)**, **TypeScript**, and **Tailwind CSS**. It enables users to upload documents (digital PDFs or scanned images), automatically extracts structured text via PDF parsing and Optical Character Recognition (OCR), and synthesizes multi-length smart summaries, key takeaways, and improvement suggestions using Google Gemini AI.
 
 ---
@@ -7,9 +10,9 @@ A high-performance, accessible single-page web application built with **Next.js 
 ## 📑 Approach Write-up (Technical Assessment Summary)
 
 > **Architectural & Technical Approach (Under 200 words):**  
-> *The Document Summary Assistant is engineered as a streamlined, responsive single-page application utilizing Next.js 14 App Router and TypeScript. Document processing dynamically branches based on MIME type: digital PDFs are parsed server-side using `pdf-parse` to preserve structural formatting and line breaks while preventing client bundle bloat; image files (PNG, JPG, JPEG) and scanned documents are processed via a web worker running `tesseract.js`, providing genuine real-time recognition progress (0–100%) directly to the user interface.*
+> *The Document Summary Assistant is engineered as a streamlined, responsive single-page application utilizing Next.js 14 App Router and TypeScript. Document processing dynamically branches based on MIME type: digital PDFs are parsed server-side using `unpdf` to preserve structural formatting and line breaks without native binary or canvas dependencies; image files (PNG, JPG, JPEG) and scanned documents are processed via a web worker running `tesseract.js`, providing genuine real-time recognition progress (0–100%) directly to the user interface.*
 >
-> *Extracted text is transmitted to a protected server-side route where Google Gemini 2.5 Flash (with fallback to 1.5 Flash) applies structured prompt engineering to generate deterministic JSON payloads containing Short (~2-3 sentence briefing), Medium (~1-2 paragraph context), and Long (comprehensive breakdown) summaries, alongside ranked Key Points and actionable Improvement Suggestions. The UI is built with Tailwind CSS, featuring class-based Light/Dark theme persistence, staged loading indicators with error recovery, copy/download report actions, and full mobile responsiveness down to 375px without unnecessary third-party dependencies or extraneous bloat.*
+> *Extracted text is transmitted to a protected server-side route where Google Gemini AI (`gemini-3.6-flash` with fallback to `gemini-3.5-flash`) applies structured prompt engineering to generate deterministic JSON payloads containing Short (~2-3 sentence briefing), Medium (~1-2 paragraph context), and Long (comprehensive breakdown) summaries, alongside ranked Key Points and actionable Improvement Suggestions. The UI is built with Tailwind CSS, featuring class-based Light/Dark theme persistence, staged loading indicators with error recovery, copy/download report actions, and full mobile responsiveness down to 375px.*
 
 ---
 
@@ -21,7 +24,7 @@ A high-performance, accessible single-page web application built with **Next.js 
    - Client-side validation with inline error messaging.
 
 2. **Digital PDF Text Extraction**:
-   - Server-side parsing (`pdf-parse`) preserving paragraph and line layout.
+   - Server-side parsing (`unpdf`) preserving paragraph and line layout without serverless canvas crashes.
    - Detects corrupted files, empty documents, and scanned image-only PDFs.
 
 3. **Real Optical Character Recognition (OCR)**:
@@ -57,7 +60,7 @@ A high-performance, accessible single-page web application built with **Next.js 
     │                             │
     ▼                             ▼
 [POST /api/extract-pdf]    [Tesseract.js Web Worker]
- (Server-side pdf-parse)    (Live progress callbacks 0-100%)
+  (Server-side unpdf)       (Live progress callbacks 0-100%)
     │                             │
     └──────────────┬──────────────┘
                    ▼
@@ -84,9 +87,9 @@ A high-performance, accessible single-page web application built with **Next.js 
 - **Framework**: [Next.js 14](https://nextjs.org/) (App Router, React 18)
 - **Language**: [TypeScript](https://www.typescriptlang.org/) (Strict Mode)
 - **Styling**: [Tailwind CSS](https://tailwindcss.com/)
-- **PDF Engine**: [`pdf-parse`](https://www.npmjs.com/package/pdf-parse)
+- **PDF Engine**: [`unpdf`](https://github.com/unjs/unpdf) (Pure JS, Serverless-compatible)
 - **OCR Engine**: [`tesseract.js`](https://tesseract.projectnaptha.com/)
-- **AI Model**: [Google Gemini 2.5 Flash / 1.5 Flash](https://ai.google.dev/) (`@google/generative-ai`)
+- **AI Model**: [Google Gemini 3.6 Flash / 3.5 Flash](https://ai.google.dev/) (`@google/generative-ai`)
 - **Icons**: [`lucide-react`](https://lucide.dev/)
 
 ---
@@ -112,8 +115,8 @@ GEMINI_API_KEY=your_gemini_api_key_here
 ### 2. Installation
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd documentsummary-assistant
+git clone https://github.com/navyamishra1/Document-Summary-Assistant.git
+cd Document-Summary-Assistant
 
 # Install dependencies
 npm install
@@ -150,11 +153,13 @@ npm run start
 
 ## 🚢 Deployment Guide
 
-This Next.js 14 application is production-ready for deployment on **Vercel** or **Netlify**:
+The application is deployed live on **Vercel**:
+- **Live URL**: [https://document-summary-assistant-two-flame.vercel.app](https://document-summary-assistant-two-flame.vercel.app)
 
-### Deploy to Vercel:
+### Deploying Your Own Instance on Vercel:
 1. Push your repository to GitHub.
 2. Import the repository into the [Vercel Dashboard](https://vercel.com).
 3. Add the Environment Variable:
    - `GEMINI_API_KEY`: Your Google Gemini API Key.
 4. Click **Deploy**.
+
