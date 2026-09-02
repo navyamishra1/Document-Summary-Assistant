@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PDFParse } from 'pdf-parse';
+import { extractText } from 'unpdf';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -7,7 +7,6 @@ export const dynamic = 'force-dynamic';
 const MAX_PDF_SIZE_BYTES = 15 * 1024 * 1024; // 15MB
 
 export async function POST(req: NextRequest) {
-  let parser: any = null;
   try {
     let formData: FormData;
     try {
@@ -44,32 +43,21 @@ export async function POST(req: NextRequest) {
     }
 
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
 
-    if (buffer.length === 0) {
+    if (arrayBuffer.byteLength === 0) {
       return NextResponse.json(
         { error: 'The uploaded PDF file is empty (0 bytes).' },
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    parser = new PDFParse({ data: buffer });
-    await parser.load();
-    const textResult = await parser.getText();
+    const uint8Array = new Uint8Array(arrayBuffer);
+    const { text, totalPages } = await extractText(uint8Array, { mergePages: true });
 
-    let rawText = '';
-    let numPages = 1;
+    const rawText = typeof text === 'string' ? text : Array.isArray(text) ? (text as string[]).join('\n\n') : '';
+    const numPages = typeof totalPages === 'number' && totalPages > 0 ? totalPages : 1;
 
-    if (textResult) {
-      if (typeof textResult === 'string') {
-        rawText = textResult;
-      } else if (textResult.text) {
-        rawText = textResult.text;
-        numPages = textResult.total || (textResult.pages ? textResult.pages.length : 1);
-      }
-    }
-
-    // Clean page header artifacts like "-- 1 of 1 --" if present
+    // Clean page header artifacts and normalize whitespace/line breaks
     const cleanText = rawText
       .replace(/--\s*\d+\s*of\s*\d+\s*--/gi, '')
       .replace(/\r\n/g, '\n')
@@ -92,13 +80,5 @@ export async function POST(req: NextRequest) {
       { error: `Failed to parse PDF: ${error?.message || 'The document might be corrupted or invalid.'}` },
       { status: 422, headers: { 'Content-Type': 'application/json' } }
     );
-  } finally {
-    if (parser && typeof parser.destroy === 'function') {
-      try {
-        await parser.destroy();
-      } catch (destroyErr) {
-        // ignore destroy error
-      }
-    }
   }
 }
